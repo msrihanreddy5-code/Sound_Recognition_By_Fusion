@@ -1,0 +1,270 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Inter, Arial, sans-serif;
+    background: #0b1020;
+    color: #eef2ff;
+}
+
+.container {
+    width: min(1000px, 92%);
+    margin: auto;
+    padding: 55px 0;
+}
+
+.hero {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 8px 14px;
+    border: 1px solid #313b5d;
+    border-radius: 999px;
+    color: #aeb9db;
+    font-size: 13px;
+    margin-bottom: 18px;
+}
+
+h1 {
+    font-size: clamp(40px, 7vw, 72px);
+    line-height: 1;
+    margin: 0 0 18px;
+    letter-spacing: -3px;
+}
+
+.hero p {
+    color: #9ba7c7;
+    font-size: 18px;
+}
+
+.card {
+    background: #121a2d;
+    border: 1px solid #293452;
+    border-radius: 24px;
+    padding: 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+
+.upload-box {
+    min-height: 250px;
+    border: 2px dashed #3b486d;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    text-align: center;
+    transition: .2s;
+}
+
+.upload-box:hover {
+    border-color: #7c8cff;
+    background: #151f37;
+}
+
+.upload-box input {
+    display: none;
+}
+
+.upload-icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+}
+
+.upload-box h2 {
+    margin: 5px 0;
+}
+
+.upload-box p {
+    color: #8995b5;
+    margin: 6px 0 18px;
+}
+
+.button,
+.predict-btn {
+    border: 0;
+    border-radius: 12px;
+    padding: 13px 22px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.button {
+    background: #eef2ff;
+    color: #10162a;
+}
+
+.file-info {
+    margin-top: 16px;
+    color: #b9c4df;
+}
+
+audio {
+    width: 100%;
+    margin-top: 18px;
+}
+
+.predict-btn {
+    width: 100%;
+    margin-top: 18px;
+    background: #6674ff;
+    color: white;
+    font-size: 16px;
+}
+
+.predict-btn:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+.loading {
+    text-align: center;
+    margin: 24px 0 5px;
+    color: #aeb9db;
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid #3b486d;
+    border-top-color: #aeb9ff;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    margin: 0 auto 10px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.result {
+    text-align: center;
+    margin-top: 24px;
+    padding: 28px;
+    border-radius: 18px;
+    background: #0d1528;
+    border: 1px solid #303c61;
+}
+
+.result-label {
+    color: #8f9abb;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.prediction {
+    font-size: 34px;
+    font-weight: 800;
+    margin-top: 8px;
+}
+
+.confidence {
+    color: #9eabd0;
+    margin-top: 8px;
+}
+
+.error {
+    margin-top: 18px;
+    padding: 13px;
+    border-radius: 10px;
+    background: #321b26;
+    color: #ffb9c9;
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin: 18px 0;
+}
+
+.stat {
+    background: #121a2d;
+    border: 1px solid #293452;
+    border-radius: 18px;
+    padding: 22px;
+    text-align: center;
+}
+
+.stat strong {
+    display: block;
+    font-size: 27px;
+}
+
+.stat span {
+    color: #8995b5;
+    font-size: 13px;
+}
+
+.about {
+    margin-top: 38px;
+}
+
+.about h2 {
+    font-size: 28px;
+}
+
+.steps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.steps div {
+    background: #121a2d;
+    border: 1px solid #293452;
+    border-radius: 15px;
+    padding: 18px;
+}
+
+.steps b {
+    display: block;
+    color: #8793ff;
+    margin-bottom: 9px;
+}
+
+.steps span {
+    color: #b2bdd8;
+}
+
+.about p {
+    color: #8e9ab9;
+    line-height: 1.7;
+    margin-top: 20px;
+}
+
+footer {
+    text-align: center;
+    color: #66728f;
+    margin-top: 50px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+@media (max-width: 700px) {
+    .stats,
+    .steps {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats,
+    .steps {
+        grid-template-columns: 1fr;
+    }
+
+    .container {
+        padding: 30px 0;
+    }
+}
