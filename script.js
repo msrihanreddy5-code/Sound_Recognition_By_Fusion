@@ -1,155 +1,140 @@
-// DOM Elements
-const uploadView = document.getElementById('upload-view');
-const activeView = document.getElementById('active-view');
-const dropZone = document.getElementById('drop-zone');
-const fileInput = document.getElementById('file-input');
+const API = "http://localhost:8000";
 
-const fileNameEl = document.getElementById('file-name');
-const fileSizeEl = document.getElementById('file-size');
-const audioPlayer = document.getElementById('audio-player');
-const removeBtn = document.getElementById('remove-btn');
+// Turns any backend error shape into readable text
+function errorMessage(data) {
+    if (!data) return "Unknown error";
+    if (data.error) return data.error;
+    if (Array.isArray(data.detail)) return data.detail.map(d => d.msg).join(", ");
+    return data.detail || data.message || "Unknown error";
+}
 
-const classifyBtn = document.getElementById('classify-btn');
-const processingState = document.getElementById('processing-state');
-const completedState = document.getElementById('completed-state');
-const progressBar = document.getElementById('progress-bar');
-const statusMessage = document.getElementById('status-message');
+/* ---------------- Predict ---------------- */
+document.getElementById('analyzeBtn').addEventListener('click', async () => {
+    const fileInput = document.getElementById('audioUpload');
+    const modelSelect = document.getElementById('modelSelect').value;
+    const loadingText = document.getElementById('loading');
+    const predictionText = document.getElementById('predictionText');
+    const waveform = document.getElementById('waveform');
+    const logmel = document.getElementById('melPlot');
+    const rpPlot = document.getElementById('rpPlot');
+    const resultsContainer = document.getElementById('PredictionResults');
 
-const resultCategory = document.getElementById('result-category');
-const resultConfidence = document.getElementById('result-confidence');
-const resetBtn = document.getElementById('reset-btn');
-
-let currentFileURL = null;
-
-// --- Upload Logic ---
-
-// Click to upload
-dropZone.addEventListener('click', () => {
-    fileInput.click();
-});
-
-// Drag and drop events
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('border-indigo-500', 'bg-indigo-500/10');
-});
-
-dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('border-indigo-500', 'bg-indigo-500/10');
-});
-
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('border-indigo-500', 'bg-indigo-500/10');
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        handleFile(e.dataTransfer.files[0]);
+    if (fileInput.files.length === 0) {
+        alert("Please select or record an audio file first.");
+        return;
     }
-});
 
-fileInput.addEventListener('change', (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-        handleFile(e.target.files[0]);
-    }
-});
+    // Package the file AND the selected model
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+    formData.append("model_choice", modelSelect);
 
-function handleFile(file) {
-    if (file.name.endsWith('.wav') || file.name.endsWith('.mp3') || file.type.includes('audio')) {
-        // Show active view, hide upload view
-        uploadView.classList.add('hidden');
-        activeView.classList.remove('hidden');
+    loadingText.style.display = 'block';
+    resultsContainer.style.display = 'none';
+    predictionText.innerText = "Prediction: Calculating...";
 
-        // Reset UI state
-        classifyBtn.classList.remove('hidden');
-        processingState.classList.add('hidden');
-        completedState.classList.add('hidden');
-        progressBar.style.width = '0%';
+    try {
+        const response = await fetch(`${API}/api/predict`, { method: "POST", body: formData });
+        const data = await response.json();
 
-        // Populate file info
-        fileNameEl.textContent = file.name;
-        fileSizeEl.textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
-
-        // Set audio player URL
-        if (currentFileURL) {
-            URL.revokeObjectURL(currentFileURL);
+        if (response.ok && data.status === "success") {
+            predictionText.innerText = `Prediction: ${data.top_class} (${data.confidence}%)`;
+            waveform.src = data.wave;
+            logmel.src = data.Logmel;
+            rpPlot.src = data.rp_image;
+            resultsContainer.style.display = 'block';
+        } else {
+            predictionText.innerText = "Prediction: --";
+            alert("Error: " + errorMessage(data));
         }
-        currentFileURL = URL.createObjectURL(file);
-        audioPlayer.src = currentFileURL;
-    } else {
-        alert("Please upload a .wav or .mp3 file.");
+    } catch (error) {
+        console.error("Network Error:", error);
+        alert("Failed to connect to backend.");
+    } finally {
+        loadingText.style.display = 'none';
+    }
+});
+
+/* ---------------- Tab navigation ---------------- */
+function switchTab(event, targetId) {
+    document.querySelectorAll('.tab-content').forEach(tab => { tab.style.display = 'none'; });
+    document.querySelectorAll('.nav-btn').forEach(btn => { btn.classList.remove('active'); });
+    document.getElementById(targetId).style.display = 'block';
+    event.currentTarget.classList.add('active');
+}
+
+/* ---------------- Dev training ---------------- */
+const trainBtn = document.getElementById('trainBtn');
+const trainStatus = document.getElementById('trainStatus');   // optional <p id="trainStatus">
+let pollTimer = null;
+
+function setTrainStatus(text) {
+    if (trainStatus) trainStatus.textContent = text;
+}
+
+function stopPolling() {
+    clearInterval(pollTimer);
+    pollTimer = null;
+    trainBtn.disabled = false;
+}
+
+async function pollTrainStatus() {
+    try {
+        const s = await (await fetch(`${API}/api/train-status`)).json();
+        if (s.is_training) {
+            setTrainStatus(`Training ${s.model_name}: epoch ${s.current_epoch}/${s.total_epochs}, loss ${s.current_loss}`);
+        } else {
+            stopPolling();
+            setTrainStatus(`Run ended for ${s.model_name}: ${s.current_epoch}/${s.total_epochs} epochs, last loss ${s.current_loss}`);
+        }
+    } catch (e) {
+        stopPolling();
+        setTrainStatus("Lost connection to the backend.");
     }
 }
 
-// Remove File
-removeBtn.addEventListener('click', () => {
-    resetApp();
-});
+trainBtn.addEventListener('click', async () => {
+    const model_name = document.getElementById('modelSelectDev').value;   // sresnet | resnet | cnn_gru | vgg16
+    const epochsInput = document.getElementById('epochsInput');           // add id="epochsInput" in the HTML
+    const epochs = epochsInput ? parseInt(epochsInput.value, 10) : 50;
 
-// --- Classification Logic (Mocking SResNet pipeline) ---
-
-classifyBtn.addEventListener('click', () => {
-    // Hide classify button, show processing state
-    classifyBtn.classList.add('hidden');
-    processingState.classList.remove('hidden');
-    
-    // Reset progress bar width to 0 first
-    progressBar.style.width = '0%';
-    
-    // Status 0s
-    statusMessage.textContent = "Applying STES for endpoint detection...";
-
-    // Start progress bar animation (needs a slight delay for DOM to register 0% first)
-    setTimeout(() => {
-        progressBar.style.width = '100%';
-    }, 50);
-
-    // Status 1.5s
-    setTimeout(() => {
-        statusMessage.textContent = "Generating Mel-spectrogram (Linear Features)...";
-    }, 1500);
-
-    // Status 3s
-    setTimeout(() => {
-        statusMessage.textContent = "Constructing Recurrence Plot (Nonlinear Features)...";
-    }, 3000);
-
-    // Status 4.5s
-    setTimeout(() => {
-        statusMessage.textContent = "Fusing features via DMFF in SResNet...";
-    }, 4500);
-
-    // Status 6s (Complete)
-    setTimeout(() => {
-        // Hide processing, show results
-        processingState.classList.add('hidden');
-        completedState.classList.remove('hidden');
-
-        // Generate mock results
-        const categories = ['Dog Bark', 'Engine Idling', 'Street Music', 'Car Horn'];
-        const randomCategory = categories[Math.floor(Math.random() * categories.length)];
-        const randomConfidence = (Math.random() * (98.39 - 97.82) + 97.82).toFixed(2);
-
-        resultCategory.textContent = randomCategory;
-        resultConfidence.textContent = randomConfidence + '%';
-    }, 6000);
-});
-
-// --- Reset Logic ---
-
-resetBtn.addEventListener('click', resetApp);
-
-function resetApp() {
-    // Hide active view, show upload view
-    activeView.classList.add('hidden');
-    uploadView.classList.remove('hidden');
-    
-    // Reset file input
-    fileInput.value = '';
-
-    // Cleanup URL
-    if (currentFileURL) {
-        URL.revokeObjectURL(currentFileURL);
-        currentFileURL = null;
+    if (!Number.isInteger(epochs) || epochs < 1 || epochs > 500) {
+        alert("Epochs must be a whole number between 1 and 500.");
+        return;
     }
-    audioPlayer.src = '';
-}
+
+    trainBtn.disabled = true;
+    try {
+        const res = await fetch(`${API}/api/train`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ epochs, model_name })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            alert("Could not start training: " + errorMessage(data));
+            trainBtn.disabled = false;
+            return;
+        }
+        setTrainStatus(data.message);
+        pollTimer = setInterval(pollTrainStatus, 2000);
+    } catch (e) {
+        alert("Failed to connect to backend.");
+        trainBtn.disabled = false;
+    }
+});
+
+/* ---------------- Save model checkpoint ---------------- */
+document.getElementById('saveBtn').addEventListener('click', async () => {
+    const model = document.getElementById('modelSelectDev').value;
+    const formData = new FormData();
+    formData.append("model_choice", model);
+
+    try {
+        const res = await fetch(`${API}/api/save-model`, { method: "POST", body: formData });
+        const data = await res.json();
+        alert(res.ok ? data.message : "Could not save: " + errorMessage(data));
+    } catch (e) {
+        alert("Failed to connect to backend.");
+    }
+});
